@@ -69,8 +69,13 @@ def predict(entrada: Entrada):
 # ------------------------------------------------------------------
 # TAREFA 2 - consulta do resultado
 # ------------------------------------------------------------------
-# @app.get("/resultado/{tarefa_id}")
-# def resultado(tarefa_id: str):
-#     """Deve devolver o resultado; 404 se o id nao existir."""
-#     # DICA: use app.fila.buscar_resultado(tarefa_id)
-#     raise NotImplementedError("implemente a consulta de resultado")
+@app.get("/resultado/{tarefa_id}")
+def resultado(tarefa_id: str):
+    """Deve devolver o resultado; 404 se o id nao existir."""
+    # DICA: use app.fila.buscar_resultado(tarefa_id)
+    # raise NotImplementedError("implemente a consulta de resultado")
+
+    retorno = fila.buscar_resultado(tarefa_id)
+    if retorno: return retorno
+
+    raise HTTPException(status_code=404, detail="tarefa não encontrada")
