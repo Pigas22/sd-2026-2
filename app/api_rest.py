@@ -16,6 +16,7 @@ import time
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from app import fila
 
 from app.modelo import carregar_modelo
 
@@ -56,12 +57,14 @@ def predict_sync(entrada: Entrada):
 # ------------------------------------------------------------------
 # TAREFA 1 - submissao assincrona
 # ------------------------------------------------------------------
-# @app.post("/predict", status_code=202)
-# def predict(entrada: Entrada):
-#     """Deve enfileirar a tarefa e devolver {"id": ...} SEM esperar."""
-#     # DICA: use app.fila.enfileirar(entrada.texto)
-#     raise NotImplementedError("implemente a submissao assincrona")
+@app.post("/predict", status_code=202)
+def predict(entrada: Entrada):
+    """Deve enfileirar a tarefa e devolver {"id": ...} SEM esperar."""
+    # DICA: use app.fila.enfileirar(entrada.texto)
+    # raise NotImplementedError("implemente a submissao assincrona")
 
+    id_tarefa = fila.enfileirar(entrada.texto)
+    return {"id": id_tarefa}
 
 # ------------------------------------------------------------------
 # TAREFA 2 - consulta do resultado
