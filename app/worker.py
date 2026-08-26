@@ -34,7 +34,9 @@ def main():
 
             # TAREFA 3: guarde o resultado para o cliente consultar depois.
             # DICA: fila.guardar_resultado(tarefa["id"], resultado)
-            raise NotImplementedError("guarde o resultado na TAREFA 3")
+            # raise NotImplementedError("guarde o resultado na TAREFA 3")
+
+            fila.guardar_resultado(tarefa["id"], resultado)
 
         except NotImplementedError:
             raise
