@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package calculadora;
+
+service Calculadora {
+ rpc Somar (Operandos) returns (Resultado); // a operação remota
+}
+
+message Operandos { // o que o cliente ENVIA
+ int32 a = 1; // o "= 1" é a posição do campo no formato binário
+ int32 b = 2;
+}
+
+message Resultado { // o que o servidor DEVOLVE
+ int32 valor = 1;
+}
