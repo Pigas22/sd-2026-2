@@ -25,3 +25,8 @@ def obter(tid: int):
         if t['id'] == tid:
             return t
     raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+
+
+## Comando para executar:
+# uvicorn app:app --reload --port 8000
+# abra no navegador:  http://localhost:8000/docs
