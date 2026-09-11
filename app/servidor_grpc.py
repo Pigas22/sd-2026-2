@@ -3,8 +3,7 @@ Interface gRPC do servico de inferencia.
 
 PRE-REQUISITO: gerar os stubs antes de rodar (veja scripts/gerar_stubs).
 
-O QUE JA ESTA PRONTO: o metodo Prever.
-O QUE VOCE PRECISA FAZER (TAREFAS.md, item 4): o metodo PreverLote.
+Metodos: Prever (um texto) e PreverLote (varios textos numa chamada so).
 
 Rodar:  python -m app.servidor_grpc
 """
@@ -33,15 +32,33 @@ class ServicoInferencia(inferencia_pb2_grpc.InferenciaServicer):
         print("[grpc] modelo pronto")
 
     def Prever(self, request, context):
+        if not request.texto.strip():
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "o texto não pode ser vazio")
+
         r = self.modelo.prever(request.texto)
         return inferencia_pb2.RespostaPrever(
             texto=r["texto"], sentimento=r["sentimento"], confianca=r["confianca"]
         )
 
+    # ------------------------------------------------------------------
+    # TAREFA 4 - inferencia em lote
+    # ------------------------------------------------------------------
     # TAREFA 4: implemente PreverLote, recebendo varios textos de uma vez.
     # def PreverLote(self, request, context):
     #     ...
 
+    def PreverLote(self, request, context):
+        if not request.textos:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "o lote não pode ser vazio")
+
+        resultados = []
+        for texto in request.textos:
+            r = self.modelo.prever(texto)
+            resultados.append(inferencia_pb2.RespostaPrever(
+                texto=r["texto"], sentimento=r["sentimento"], confianca=r["confianca"]
+            ))
+
+        return inferencia_pb2.RespostaLote(resultados=resultados)
 
 def servir(porta: int = 50051):
     servidor = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
