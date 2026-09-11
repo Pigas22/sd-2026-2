@@ -12,6 +12,7 @@ import redis
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 FILA_TAREFAS = "tarefas"
+FILA_DESCARTE = "tarefas:descarte"
 PREFIXO_RESULTADO = "resultado:"
 
 _cliente = None
@@ -48,3 +49,20 @@ def guardar_resultado(tarefa_id: str, resultado: dict) -> None:
 def buscar_resultado(tarefa_id: str):
     bruto = cliente().get(PREFIXO_RESULTADO + tarefa_id)
     return json.loads(bruto) if bruto else None
+
+
+# ------------------------------------------------------------------
+# TAREFA 5 - retentativa e fila de descarte (dead-letter)
+# ------------------------------------------------------------------
+def reenfileirar(tarefa: dict) -> None:
+    """Devolve a tarefa para o fim da fila, para o worker tentar de novo."""
+    cliente().rpush(FILA_TAREFAS, json.dumps(tarefa))
+
+
+def descartar(tarefa: dict, erro: str) -> None:
+    """Manda a tarefa para a fila de descarte, com o motivo da falha."""
+    cliente().rpush(FILA_DESCARTE, json.dumps({"tarefa": tarefa, "erro": erro}))
+
+
+def tamanho_descarte() -> int:
+    return cliente().llen(FILA_DESCARTE)

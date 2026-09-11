@@ -2,9 +2,8 @@
 Worker: consome a fila e executa a inferencia.
 
 O QUE JA ESTA PRONTO: o laco principal e o carregamento do modelo.
-O QUE VOCE PRECISA FAZER (TAREFAS.md, itens 3 e 5):
-  - guardar o resultado ao terminar
-  - tratar erro com retentativa e fila de descarte (dead-letter)
+Em caso de falha a tarefa volta para a fila; apos 3 tentativas vai para a
+fila de descarte (dead-letter) e o cliente passa a ver status "falhou".
 
 Rodar:  python -m app.worker
 Suba mais de um worker em terminais diferentes e veja a carga se dividir.
@@ -13,6 +12,8 @@ import time
 
 from app import fila
 from app.modelo import carregar_modelo
+
+MAX_TENTATIVAS = 3
 
 
 def main():
@@ -40,9 +41,29 @@ def main():
 
         except NotImplementedError:
             raise
+        # ------------------------------------------------------------------
+        # TAREFA 5 - retentativa e fila de descarte (dead-letter)
+        # ------------------------------------------------------------------
         except Exception as erro:  # noqa: BLE001
             # TAREFA 5: retentativa + dead-letter em vez de so registrar.
-            print(f"[worker] ERRO em {tarefa['id']}: {erro}")
+            # print(f"[worker] ERRO em {tarefa['id']}: {erro}")
+
+            tarefa["tentativas"] = tarefa.get("tentativas", 0) + 1
+
+            if tarefa["tentativas"] < MAX_TENTATIVAS:
+                print(f"[worker] ERRO em {tarefa['id']}: {erro} "
+                      f"(tentativa {tarefa['tentativas']} de {MAX_TENTATIVAS}, "
+                      f"voltando para a fila)")
+                fila.reenfileirar(tarefa)
+            else:
+                print(f"[worker] DESCARTE de {tarefa['id']} apos "
+                      f"{tarefa['tentativas']} tentativas: {erro}")
+                fila.descartar(tarefa, str(erro))
+                fila.guardar_resultado(tarefa["id"], {
+                    "status": "falhou",
+                    "erro": str(erro),
+                    "tentativas": tarefa["tentativas"],
+                })
 
 
 if __name__ == "__main__":
