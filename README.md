@@ -1,123 +1,239 @@
-# Kit de Partida — C1.A2: Serviço de Inferência Distribuído
+# Serviço de Inferência Distribuído — C1.A2
 
-**Sistemas Distribuídos e Computação em Nuvem · FAESA · 2026/2**
-Prof. Howard Cruz Roatti · Lançado na Aula 6 (10/09) · Entrega na Aula 7 (17/09)
+Sistemas Distribuídos e Computação em Nuvem · FAESA · 2026/2
 
----
+Serviço que recebe um texto e diz se o sentimento é positivo ou negativo.
+O sistema disponibiliza interfaces REST e gRPC e utiliza Redis como fila de tarefas e armazenamento temporário de resultados.
 
-## O que é isto
+## Arquitetura
 
-Um serviço que recebe um texto, executa uma inferência de IA e devolve o resultado.
-O desafio **não é a IA** (o modelo já vem pronto), e sim expor esse serviço por **duas
-tecnologias de comunicação** (REST e gRPC) e **não deixar o cliente esperando** — usando fila.
+```text
+Cliente REST ──▶ API REST ──┐
+                            ├──▶ Redis ──▶ Worker ──▶ Modelo
+Cliente gRPC ──▶ API gRPC ──┘
+```
 
-> **Sobre a IA neste trabalho:** todo contato com inteligência artificial aqui é
-> **chamada de biblioteca ou de API**. Você **não vai treinar modelos** nem precisar de
-> matemática de aprendizado de máquina. O modelo já vem pronto e configurado.
-> A sua nota vem da **engenharia distribuída**: arquitetura, comunicação, resiliência e
-> execução reproduzível — a sofisticação do modelo **não pontua**.
+- **REST:** recebe tarefas síncronas e assíncronas.
+- **gRPC:** realiza inferência individual ou em lote.
+- **Redis:** armazena a fila, resultados e tarefas descartadas.
+- **Worker:** processa tarefas assíncronas.
+- **Modelo:** classificador de sentimento positivo/negativo.
 
----
+## Requisitos
 
-## Como começar
+- Python 3.11+
+- Docker e Docker Compose
+- Redis
+- Dependências listadas em `requirements.txt`
+
+## Instalação
 
 ```bash
-# 1. Clone o kit e entre na pasta
-git clone https://github.com/howardroatti/sd-2026-2-kit-c1a2.git
+git clone https://github.com/Pigas22/sd-2026-2-kit-c1a2.git
 cd sd-2026-2-kit-c1a2
 
-# 2. Crie e ative o ambiente virtual
 python -m venv .venv
-# Windows:
 .venv\Scripts\activate
-# Linux/macOS:
-source .venv/bin/activate
-
-# 3. Instale as dependências
 pip install -r requirements.txt
 ```
 
+No Linux/macOS:
+
 ```bash
-# 4. Suba a fila (Redis) em outro terminal
+source .venv/bin/activate
+```
+
+## Executando o Redis
+
+```bash
 docker compose up -d
+```
 
-# 5. Rode o serviço REST
+## Gerando os stubs gRPC
+
+Windows:
+
+```powershell
+.\scripts\gerar_stubs.ps1
+```
+
+Linux/macOS:
+
+```bash
+./scripts/gerar_stubs.sh
+```
+
+## Executando os serviços
+
+Abra terminais separados.
+
+### API REST
+
+```bash
 uvicorn app.api_rest:app --reload --port 8000
-# abra http://localhost:8000/docs
+```
 
-# 6. Em outro terminal, rode o worker
+### Worker
+
+```bash
 python -m app.worker
+```
 
-# 7. Teste o exemplo pronto (rota síncrona)
-python exemplos/cliente_rest.py "o atendimento foi otimo"
+É possível executar vários workers simultaneamente:
 
-# 8. Para o gRPC, gere os stubs antes
-python -m grpc_tools.protoc -I proto --python_out=. --grpc_python_out=. proto/inferencia.proto
+```bash
+python -m app.worker
+```
+
+As tarefas serão distribuídas pela fila Redis.
+
+### Servidor gRPC
+
+```bash
 python -m app.servidor_grpc
 ```
 
----
+- REST: `http://localhost:8000`
+- Documentação: `http://localhost:8000/docs`
+- gRPC: porta `50051`
 
-## Estrutura do projeto
+## API REST
 
-```
-sd-2026-2-kit-c1a2/
-├── app/
-│   ├── modelo.py           # PRONTO - modelo de sentimento offline
-│   ├── fila.py             # PRONTO - auxiliares de fila (Redis)
-│   ├── api_rest.py         # TAREFAS 1 e 2
-│   ├── worker.py           # TAREFAS 3 e 5
-│   └── servidor_grpc.py    # TAREFA 4
-├── proto/inferencia.proto  # contrato gRPC
-├── exemplos/cliente_rest.py
-├── scripts/gerar_stubs.*
-├── docker-compose.yml      # sobe o Redis
-└── TAREFAS.md              # <- comece por aqui
+### Verificar saúde
+
+```http
+GET /saude
 ```
 
----
+Resposta:
 
-## O que você precisa fazer
+```json
+{
+  "status": "ok",
+  "modelo_carregado": true
+}
+```
 
-Abra o arquivo **`TAREFAS.md`**: ele lista o núcleo obrigatório item a item, indicando
-o arquivo e a aula de referência de cada um.
+### Inferência síncrona
 
----
+```http
+POST /predict-sync
+Content-Type: application/json
+```
 
-## Como você será avaliado
+Corpo:
 
-| Critério | Pontos |
-|---|---|
-| Arquitetura e decomposição em serviços | 1,5 |
-| Comunicação funcionando (REST / gRPC / mensageria) | 1,5 |
-| Resiliência e tratamento de falhas | 1,0 |
-| Execução reproduzível (README, container, deploy) | 1,0 |
-| **Sofisticação do modelo de IA** | **não pontua** |
-| **Total** | **5,0** |
+```json
+{
+  "texto": "o atendimento foi excelente"
+}
+```
 
-**Entrega:** no seu repositório do GitHub, **sem apresentação oral**. Grupos livres.
+### Submeter tarefa assíncrona
 
----
+```http
+POST /predict
+Content-Type: application/json
+```
 
-## Aulas de referência
+Resposta `202 Accepted`:
 
-- **Aula 4** — Do RPC ao gRPC (contrato `.proto` e stubs)
-- **Aula 5** — REST e OpenAPI com FastAPI
-- **Aula 6** — IA como serviço (carregar o modelo uma vez)
-- **Aula 8** — Mensageria: fila, worker e dead-letter
+```json
+{
+  "id": " identificador-da-tarefa "
+}
+```
 
----
+### Consultar resultado
 
-## Dúvidas frequentes
+```http
+GET /resultado/{id}
+```
 
-**Preciso saber machine learning?** Não. O modelo já está pronto e você só chama uma função.
+Enquanto aguarda:
 
-**E se eu não tiver internet no laboratório?** Tudo neste kit funciona offline. O modelo é
-treinado localmente e o cliente de LLM tem modo simulado.
+```json
+{
+  "status": "na_fila"
+}
+```
 
-**Posso trocar a linguagem?** O kit é em Python porque é o ecossistema usado nas aulas.
-Se quiser usar outra linguagem, converse com o professor antes.
+Quando concluído:
 
-**Posso usar IA para me ajudar a programar?** Sim. Este é um trabalho prático feito fora de
-sala, e usar ferramentas de IA é realista. O que se avalia é o **sistema funcionando** e as
-**decisões de arquitetura** — que você precisa saber explicar.
+```json
+{
+  "texto": "o atendimento foi excelente",
+  "sentimento": "positivo",
+  "confianca": 0.8123,
+  "status": "pronto",
+  "tempo_ms": 3.42
+}
+```
+
+Em caso de falha após três tentativas:
+
+```json
+{
+  "status": "falhou",
+  "erro": "mensagem do erro",
+  "tentativas": 3
+}
+```
+
+## API gRPC
+
+O contrato está em:
+
+```text
+proto/inferencia.proto
+```
+
+Métodos disponíveis:
+
+- `Prever`: classifica um texto.
+- `PreverLote`: classifica vários textos em uma chamada.
+
+Cliente de exemplo:
+
+```bash
+python -m exemplos.cliente_grpc
+```
+
+## Tratamento de erros
+
+- Texto vazio no REST: HTTP `400`.
+- Texto vazio no gRPC: `INVALID_ARGUMENT`.
+- Tarefas assíncronas são tentadas até três vezes.
+- Após três falhas, a tarefa é enviada para `tarefas:descarte`.
+- Resultados são armazenados no Redis.
+
+## Estrutura principal
+
+```text
+app/
+├── api_rest.py
+├── fila.py
+├── modelo.py
+├── servidor_grpc.py
+└── worker.py
+
+proto/
+└── inferencia.proto
+
+exemplos/
+├── cliente_rest.py
+└── cliente_grpc.py
+```
+
+## Teste rápido
+
+```bash
+python exemplos/cliente_rest.py "o atendimento foi ótimo"
+python -m exemplos.cliente_grpc
+```
+
+## Autores
+
+- Davi Tâmbara Rodrigues
+- Thiago Holz
+- Samuel Eduardo Rocha de Souza
