@@ -24,7 +24,7 @@ Marque conforme for concluindo. Cada item aponta o arquivo e a aula de referenci
 - [x] **6. Log de requisicoes** - todos os servicos
       Registrar cada requisicao recebida (id, tamanho da entrada, tempo de resposta).
 
-- [ ] **7. README proprio**
+- [x] **7. README proprio**
       Reescrever o README explicando SUA arquitetura e como executar do zero.
 
 ## Extensoes opcionais (nao valem nota extra)
