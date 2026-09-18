@@ -12,6 +12,9 @@ from concurrent import futures
 import grpc
 
 from app.modelo import carregar_modelo
+from app.log import registrar_requisicao
+import time
+import uuid
 
 try:
     import inferencia_pb2
@@ -32,13 +35,18 @@ class ServicoInferencia(inferencia_pb2_grpc.InferenciaServicer):
         print("[grpc] modelo pronto")
 
     def Prever(self, request, context):
-        if not request.texto.strip():
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "o texto não pode ser vazio")
+        inicio = time.perf_counter()
+        identificador = str(uuid.uuid4())
+        try:
+            if not request.texto.strip():
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, "o texto não pode ser vazio")
 
-        r = self.modelo.prever(request.texto)
-        return inferencia_pb2.RespostaPrever(
-            texto=r["texto"], sentimento=r["sentimento"], confianca=r["confianca"]
-        )
+            r = self.modelo.prever(request.texto)
+            return inferencia_pb2.RespostaPrever(
+                texto=r["texto"], sentimento=r["sentimento"], confianca=r["confianca"]
+            )
+        finally:
+            registrar_requisicao(identificador, len(request.texto), inicio, "grpc")
 
     # ------------------------------------------------------------------
     # TAREFA 4 - inferencia em lote
@@ -48,17 +56,23 @@ class ServicoInferencia(inferencia_pb2_grpc.InferenciaServicer):
     #     ...
 
     def PreverLote(self, request, context):
-        if not request.textos:
-            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "o lote não pode ser vazio")
+        inicio = time.perf_counter()
+        identificador = str(uuid.uuid4())
+        try:
+            if not request.textos:
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, "o lote não pode ser vazio")
 
-        resultados = []
-        for texto in request.textos:
-            r = self.modelo.prever(texto)
-            resultados.append(inferencia_pb2.RespostaPrever(
-                texto=r["texto"], sentimento=r["sentimento"], confianca=r["confianca"]
-            ))
+            resultados = []
+            for texto in request.textos:
+                r = self.modelo.prever(texto)
+                resultados.append(inferencia_pb2.RespostaPrever(
+                    texto=r["texto"], sentimento=r["sentimento"], confianca=r["confianca"]
+                ))
 
-        return inferencia_pb2.RespostaLote(resultados=resultados)
+            return inferencia_pb2.RespostaLote(resultados=resultados)
+        finally:
+            tamanho = sum(len(texto) for texto in request.textos)
+            registrar_requisicao(identificador, tamanho, inicio, "grpc")
 
 def servir(porta: int = 50051):
     servidor = grpc.server(futures.ThreadPoolExecutor(max_workers=10))

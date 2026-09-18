@@ -18,6 +18,8 @@ Cliente gRPC ──▶ API gRPC ──┘
 - **Redis:** armazena a fila, resultados e tarefas descartadas.
 - **Worker:** processa tarefas assíncronas.
 - **Modelo:** classificador de sentimento positivo/negativo.
+- **Logs:** cada processo cria um arquivo novo em `logs/` e registra continuamente o id,
+  o tamanho da entrada e o tempo de resposta das requisições.
 
 ## Requisitos
 
@@ -31,16 +33,26 @@ Cliente gRPC ──▶ API gRPC ──┘
 ```bash
 git clone https://github.com/Pigas22/sd-2026-2-kit-c1a2.git
 cd sd-2026-2-kit-c1a2
+```
 
+### Criar e Ativar Ambiente Vitural Python
+
+Windows:
+```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
 ```
 
 No Linux/macOS:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Instalação de Dependências
 
 ```bash
-source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ## Executando o Redis

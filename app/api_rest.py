@@ -13,10 +13,12 @@ Rodar:  uvicorn app.api_rest:app --reload --port 8000
 Docs:   http://localhost:8000/docs
 """
 import time
+import uuid
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from app import fila
+from app.log import registrar_requisicao
 
 from app.modelo import carregar_modelo
 
@@ -46,12 +48,16 @@ def saude():
 @app.post("/predict-sync")
 def predict_sync(entrada: Entrada):
     """Inferencia SINCRONA: o cliente espera a resposta. Lab da Aula 6."""
-    if not entrada.texto.strip():
-        raise HTTPException(status_code=400, detail="texto vazio")
-    inicio = time.time()
-    resultado = modelo.prever(entrada.texto)
-    resultado["tempo_ms"] = round((time.time() - inicio) * 1000, 2)
-    return resultado
+    inicio = time.perf_counter()
+    identificador = str(uuid.uuid4())
+    try:
+        if not entrada.texto.strip():
+            raise HTTPException(status_code=400, detail="texto vazio")
+        resultado = modelo.prever(entrada.texto)
+        resultado["tempo_ms"] = round((time.time() - inicio) * 1000, 2)
+        return resultado
+    finally:
+        registrar_requisicao(identificador, len(entrada.texto), inicio, "rest")
 
 
 # ------------------------------------------------------------------
@@ -63,8 +69,16 @@ def predict(entrada: Entrada):
     # DICA: use app.fila.enfileirar(entrada.texto)
     # raise NotImplementedError("implemente a submissao assincrona")
 
-    id_tarefa = fila.enfileirar(entrada.texto)
-    return {"id": id_tarefa}
+    inicio = time.perf_counter()
+    identificador = str(uuid.uuid4())
+    try:
+        if not entrada.texto.strip():
+            raise HTTPException(status_code=400, detail="texto vazio")
+        id_tarefa = fila.enfileirar(entrada.texto)
+        identificador = id_tarefa
+        return {"id": id_tarefa}
+    finally:
+        registrar_requisicao(identificador, len(entrada.texto), inicio, "rest")
 
 # ------------------------------------------------------------------
 # TAREFA 2 - consulta do resultado
@@ -75,7 +89,11 @@ def resultado(tarefa_id: str):
     # DICA: use app.fila.buscar_resultado(tarefa_id)
     # raise NotImplementedError("implemente a consulta de resultado")
 
-    retorno = fila.buscar_resultado(tarefa_id)
-    if retorno: return retorno
-
-    raise HTTPException(status_code=404, detail="tarefa não encontrada")
+    inicio = time.perf_counter()
+    try:
+        retorno = fila.buscar_resultado(tarefa_id)
+        if retorno:
+            return retorno
+        raise HTTPException(status_code=404, detail="tarefa não encontrada")
+    finally:
+        registrar_requisicao(tarefa_id, 0, inicio, "rest")

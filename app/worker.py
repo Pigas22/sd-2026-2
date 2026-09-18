@@ -11,6 +11,7 @@ Suba mais de um worker em terminais diferentes e veja a carga se dividir.
 import time
 
 from app import fila
+from app.log import registrar_requisicao
 from app.modelo import carregar_modelo
 
 MAX_TENTATIVAS = 3
@@ -27,7 +28,7 @@ def main():
             continue
 
         print(f"[worker] processando {tarefa['id']}")
-        inicio = time.time()
+        inicio = time.perf_counter()
         try:
             resultado = modelo.prever(tarefa["texto"])
             resultado["status"] = "pronto"
@@ -64,6 +65,10 @@ def main():
                     "erro": str(erro),
                     "tentativas": tarefa["tentativas"],
                 })
+        finally:
+            registrar_requisicao(
+                tarefa["id"], len(tarefa["texto"]), inicio, "worker"
+            )
 
 
 if __name__ == "__main__":
