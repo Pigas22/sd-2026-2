@@ -1,5 +1,5 @@
 import grpc
-import servico_pb2, servico_pb2_grpc
+import aulas.aula04.servico_pb2 as servico_pb2, aulas.aula04.servico_pb2_grpc as servico_pb2_grpc
 
 
 print("====== Calculadora =======")
